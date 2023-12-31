@@ -6,7 +6,7 @@ cloudinary.config({
     api_key:process.env.CLOUDINARY_API_KEY,
     api_secret:process.env.CLOUDINARY_API_SECRET 
 });
-
+ 
 
 const uploadOnCloudinary = async (localFilePath)=>{
     try{
@@ -18,7 +18,6 @@ const uploadOnCloudinary = async (localFilePath)=>{
         // file uploaded successfully
         console.log("File uploaded successfully " + response.url);
         return response.url;
-
     }catch(e){
         fs.unlinkSync(localFilePath)
         //locally saved temporary file as the upload operation failed
