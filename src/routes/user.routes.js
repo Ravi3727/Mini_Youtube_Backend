@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { registerUser, loginUser, logoutUser,refreshAccessToken } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getUserWatchHistory } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verify } from "jsonwebtoken";
 
 
 const router = Router();
@@ -31,6 +32,19 @@ router.route("/logout").post(verifyJWT, logoutUser)
 
 router.route("/tokenRefresh").post(refreshAccessToken)
 
+router.route("/changepassword").post(verifyJWT, changeCurrentPassword)
+
+router.route("/current_user").get(verifyJWT, getCurrentUser)
+
+router.route("/update_account").patch(verifyJWT, updateAccountDetails)
+
+router.route("/update_avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
+
+router.route("/update_cover_image").patch(verifyJWT, upload.single("cover_image"), updateUserCoverImage)
+
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+
+router.route("/watchhistory").get(verifyJWT, getUserWatchHistory)
 
 
 export default router
