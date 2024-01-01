@@ -14,6 +14,8 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({extended:true , limit:"16kb"})); 
 app.use(express.static("public"));
+
+//Isse me user controller me cookie access kr paa raha hun in both "req.cokkie or res.cookie" because we add cokkie middleware
 app.use(cookieParser());
 
 
