@@ -2,11 +2,8 @@ import { Router } from "express";
 import { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getUserWatchHistory } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { verify } from "jsonwebtoken";
-
 
 const router = Router();
-
 
 router.route("/register").post(
     //ye apna middlewaer h jo form data ke saath files bhi letke jaa raha h (multer)
@@ -20,7 +17,8 @@ router.route("/register").post(
             maxCount: 1
         }
     ]),
-    registerUser)
+    registerUser
+)
 
 router.route("/login").post(loginUser)
 

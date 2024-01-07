@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { Subscription } from "../models/sub.model.js";
+import mongoose from "mongoose";
 
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -111,10 +112,7 @@ const loginUser = asyncHandler(async (req, res) => {
     //access and refresh token
     //send cokkie
 
-
-
     const { email, password, username } = req.body;
-
 
     if (!username && !email) {
         throw new ApiError(400, "Username or Email is required")
@@ -178,8 +176,8 @@ const logoutUser = asyncHandler(async (req, res) => {
         req.user._id,
         {
             //ye ek object leta h unn chizo ka jo update krni h
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1
             }
         },
         {
@@ -208,12 +206,14 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid refresh token")
     }
 
-
+    console.log(process.env.REFRESH_TOKEN_SCERET
+    )
     try {
         const decodedToken = jwt.verify(
             incommingRefreshToken,
-            process.env.REFRESH_TOKEN_SECRE
+            process.env.REFRESH_TOKEN_SCERET
         )
+        console.log(decodedToken)
 
         const user = await User.findById(decodedToken._id)
 
@@ -235,8 +235,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         const { newAccessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id)
 
-        return res.status(200).cookie(newAccessToken, options)
-            .cookie(newRefreshToken, options).json(
+        return res.status(200).cookie("newAccessToken", newAccessToken, options)
+            .cookie("RefreshToken", newRefreshToken, options).json(
                 new ApiResponse(
                     200,
                     { accessToken: newAccessToken, refreshToken: newRefreshToken },
@@ -275,7 +275,9 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(200, req.user, "current user sent successfully")
+    return res.status(200).json(
+        new ApiResponse(200,req.user,"user fetched successfully")
+    )
 })
 
 //Text feilds updation
@@ -288,19 +290,19 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         throw new ApiError(404, "All fields are required")
     }
 
-    const updatedUser = User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
                 fullName,
-                email
+                email : email
             }
         },
         { new: true }
 
     ).select("-password")
 
-    return res.status(200).json(new ApiResponse(200, updatedUser, "Accountdetails Updated Successfully"));
+    return res.status(200).json(new ApiResponse(200, updatedUser, "Account details Updated Successfully"));
 });
 
 //Update avatar
@@ -311,7 +313,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Avatar not found")
     }
 
-    const uploadAvatar = uploadOnCloudinary(avatarLocalpath)
+    const uploadAvatar = await uploadOnCloudinary(avatarLocalpath)
 
     if (!uploadAvatar.url) {
         throw new ApiError(401, "Avatar not uploaded on cloudinary")
@@ -364,69 +366,124 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params
 
     if (!username?.trim()) {
-        throw new ApiError(404, "Please enter a YT username")
+        throw new ApiError(400, "Please enter a YT username")
     }
 
     //Aggrigation pipeline ka work h database me store data ko kuch filters laga ke hume present krna 
     //if we have 100 data point and we apply a pipeline which filter on the basiis of some condition and return 50 data point then for another pipeline this 50 data point is the data 
     // not previous 100 data point
+    //     const channel = await User.aggregate([
+    //     //first pipeline
+    //     {
+    //         $match: {
+    //             username: username?.toLowerCase()
+                
+    //         }
+    //     },
+    //     {
+    //         //Ye two or more collections ke beech connection banata h
+    //         //Ye h uss channel ko kitno ne subscribe kiya hua h
+    //         $lookup: {
+    //             from: "subscriptions",//Subscriptions model ka name in dtabase convert to this
+    //             localField: "_id",
+    //             foreignField: "channel",
+    //             as: "subscribers"//Koi bhi name de sakte h
+    //         },
+
+    //         //ye h uss channnel ne kitno ko subscribe kiya hua h
+    //         $lookup: {
+    //             from: "subscriptions",//Subscriptions model ka name in dtabase convert to this
+    //             localField: "_id",
+    //             foreignField: "subscriber",
+    //             as: "subscribedTo"
+    //         },
+    //         //ye dono feids alag-2 h to abb dono koi combine or connect krne ke liye ek or pipeline
+    //         //addFields operator user ki feilds to rakhega hi or unme extra feilds bhi add kr dega
+            
+    //         $addFields: {
+    //             SubscribersCount: {
+    //                 //$ isiliye use kiya because ye ek feild h
+    //                 //$size = count all from this field
+    //                 $size: "$subscribers"
+    //             },
+    //             channelsSubscribersToCount: {
+    //                 $size: "$subscribedTo"
+    //             },
+    //             //Subcribe vala button change krne ke liye 
+    //             isSubscribed: {
+    //                 $cond: {
+    //                     if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+    //                     then: true,
+    //                     else: false
+    //                 }
+    //             }
+    //         },
+    //         //Selcted things project krne ke liye
+    //         $project: {
+    //             fullName: 1, //Means isee project karo
+    //             username: 1,
+    //             SubscribersCount: 1,
+    //             channelsSubscribersToCount: 1,
+    //             isSubscribed: 1,
+    //             avatar: 1,
+    //             coverImage: 1,
+    //             email: 1,
+    //         },
+    //     },
+    // ])
+
     const channel = await User.aggregate([
-        //first pipeline
         {
             $match: {
                 username: username?.toLowerCase()
             }
         },
         {
-            //Ye two or more collections ke beech connection banata h
-            //Ye h uss channel ko kitno ne subscribe kiya hua h
-            $lookeup: {
-                from: "subscriptions",//Subscriptions model ka name in dtabase convert to this
+            $lookup: {
+                from: "subscriptions",
                 localField: "_id",
                 foreignField: "channel",
-                as: "subscribers"//Koi bhi name de sakte h
-            },
-
-            //ye h uss channnel ne kitno ko subscribe kiya hua h
-            $lookeup: {
-                from: "subscriptions",//Subscriptions model ka name in dtabase convert to this
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
                 localField: "_id",
                 foreignField: "subscriber",
                 as: "subscribedTo"
-            },
-            //ye dono feids alag-2 h to abb dono koi combine or connect krne ke liye ek or pipeline
-            //addFields operator user ki feilds to rakhega hi or unme extra feilds bhi add kr dega
-
+            }
+        },
+        {
             $addFields: {
-                SubscribersCount: {
-                    //$ isiliye use kiya because ye ek feild h
-                    //$size = count all from this field
+                subscribersCount: {
                     $size: "$subscribers"
                 },
-                channelsSubscribersToCount: {
+                channelsSubscribedToCount: {
                     $size: "$subscribedTo"
                 },
-                //Subcribe vala button change krne ke liye 
                 isSubscribed: {
                     $cond: {
-                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
                         then: true,
                         else: false
                     }
                 }
-            },
-            //Selcted things project krne ke liye
+            }
+        },
+        {
             $project: {
-                fullName: 1, //Means isee project karo
+                fullName: 1,
                 username: 1,
-                SubscribersCount: 1,
-                channelsSubscribersToCount: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
                 isSubscribed: 1,
                 avatar: 1,
                 coverImage: 1,
-                email: 1,
-            },
-        },
+                email: 1
+
+            }
+        }
     ])
 
     console.log("Aggregation channel data " + channel)
@@ -449,7 +506,7 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
         {
             $match: {
                 //aggregation piplines ka code directly hi jata h so _id ko hume actuall object("id") me convert krke compare krna hoga for this we use this syntax
-                _id: new mangoose.Types.ObjectId(req.user._id)
+                _id: new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
@@ -460,7 +517,7 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
                 as: "watchHistory",
                 pipeline: [
                     {
-                        $lookeup: {
+                        $lookup: {
                             from: "users",
                             localField: "owner",
                             foreignField: "_id",
@@ -477,9 +534,9 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
                         }
                     },
                     {
-                        $addFields:{
-                            owner:{
-                                $first:"$owner"
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
                             }
                         }
                     }
