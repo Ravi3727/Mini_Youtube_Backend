@@ -16,3 +16,8 @@ dbConnect()
 .catch((err)=>{
     console.log("MongoDb connecion error !!!");
 })
+
+
+app.get('/', (req, res) => {
+    res.send("Hello jee");
+});
